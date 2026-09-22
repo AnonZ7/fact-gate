@@ -29,6 +29,8 @@ jobs:
         run: npm run self-check
       - name: CLI smoke
         shell: bash
+        env:
+          FACT_GATE_ALLOW_CMD: '1'   # CI: the repo's own .fact-gate.json may run its measurements
         run: |
           set -e
           echo "Ran 85 workflows." | node src/cli.mjs --source examples/source.md --quiet

@@ -6,18 +6,54 @@
   "main": "./src/index.mjs",
   "types": "./index.d.ts",
   "exports": {
-    ".": { "types": "./index.d.ts", "import": "./src/index.mjs" },
-    "./extract": { "types": "./index.d.ts", "import": "./src/extract.mjs" },
-    "./compare": { "types": "./index.d.ts", "import": "./src/compare.mjs" },
-    "./normalize": { "types": "./index.d.ts", "import": "./src/normalize.mjs" },
-    "./diff": { "types": "./index.d.ts", "import": "./src/diff.mjs" },
-    "./facts": { "types": "./index.d.ts", "import": "./src/facts.mjs" },
-    "./hook": { "types": "./index.d.ts", "import": "./src/hook.mjs" },
-    "./trust": { "types": "./index.d.ts", "import": "./src/trust.mjs" }
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./extract": {
+      "types": "./index.d.ts",
+      "import": "./src/extract.mjs"
+    },
+    "./compare": {
+      "types": "./index.d.ts",
+      "import": "./src/compare.mjs"
+    },
+    "./normalize": {
+      "types": "./index.d.ts",
+      "import": "./src/normalize.mjs"
+    },
+    "./diff": {
+      "types": "./index.d.ts",
+      "import": "./src/diff.mjs"
+    },
+    "./facts": {
+      "types": "./index.d.ts",
+      "import": "./src/facts.mjs"
+    },
+    "./hook": {
+      "types": "./index.d.ts",
+      "import": "./src/hook.mjs"
+    },
+    "./trust": {
+      "types": "./index.d.ts",
+      "import": "./src/trust.mjs"
+    }
   },
-  "bin": { "fact-gate": "./src/cli.mjs" },
-  "files": ["src/", "schema/", "index.d.ts", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"],
-  "engines": { "node": ">=20" },
+  "bin": {
+    "fact-gate": "src/cli.mjs"
+  },
+  "files": [
+    "src/",
+    "schema/",
+    "index.d.ts",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node --test",
     "test:watch": "node --test --watch",
@@ -28,15 +64,41 @@
     "example:pr": "node examples/pr-description.mjs"
   },
   "keywords": [
-    "llm", "hallucination", "hallucination-detection", "fact-check", "fact-checking", "guardrails",
-    "llm-guardrails", "verification", "grounding", "evals", "ai-safety", "agents", "claude-code",
-    "claude-code-hooks", "github-action", "pull-request", "pr-description", "readme", "changelog",
-    "documentation", "cv", "resume", "zero-dependency", "deterministic", "cli"
+    "llm",
+    "hallucination",
+    "hallucination-detection",
+    "fact-check",
+    "fact-checking",
+    "guardrails",
+    "llm-guardrails",
+    "verification",
+    "grounding",
+    "evals",
+    "ai-safety",
+    "agents",
+    "claude-code",
+    "claude-code-hooks",
+    "github-action",
+    "pull-request",
+    "pr-description",
+    "readme",
+    "changelog",
+    "documentation",
+    "cv",
+    "resume",
+    "zero-dependency",
+    "deterministic",
+    "cli"
   ],
   "author": "Zakaria Aichaoui <zaichaoui@gmail.com>",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/AnonZ7/fact-gate.git" },
-  "bugs": { "url": "https://github.com/AnonZ7/fact-gate/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnonZ7/fact-gate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AnonZ7/fact-gate/issues"
+  },
   "homepage": "https://github.com/AnonZ7/fact-gate#readme",
   "sideEffects": false
 }

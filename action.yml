@@ -128,8 +128,9 @@ runs:
             echo "::warning title=fact-gate::nothing to check against (no diff could be computed and no facts/source given) — skipped"
             echo "verdict=skipped" >> "$GITHUB_OUTPUT"; exit 0;;
         esac
-        node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}"
-        code=$?
+        # GitHub runs composite bash steps with -e; capture the exit code instead of dying on it.
+        code=0
+        node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}" || code=$?
         if [ "$code" -eq 2 ]; then exit 2; fi
         if [ "$FG_FAIL_ON" = "never" ]; then exit 0; fi
         exit "$code"
