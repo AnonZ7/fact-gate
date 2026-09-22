@@ -41,7 +41,8 @@ jobs:
           if node src/cli.mjs --target examples/pr-body-inflated.md --diff examples/pr.diff --format github; then
             echo "expected a block"; exit 1
           fi
-          echo '{"tool_name":"Write","tool_input":{"file_path":"'"$PWD"'/README.md","content":"Ships 999 tests."}}' | node src/cli.mjs hook | grep -q '"permissionDecision":"deny"'
+          # relative path: resolved against process.cwd(), which is native on Windows too
+          echo '{"tool_name":"Write","tool_input":{"file_path":"README.md","content":"Ships 999 tests."}}' | node src/cli.mjs hook | grep -q '"permissionDecision":"deny"'
 
   action:
     name: the GitHub Action, used from this repo
