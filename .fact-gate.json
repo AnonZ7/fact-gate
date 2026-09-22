@@ -1,0 +1,58 @@
+{
+  "$schema": "./schema/fact-gate.schema.json",
+  "_": "This repository gates its own README with itself. Every number below is measured, not typed: the test count comes from running the suite, the eval count from the cases file, the regression count from the test that lists them.",
+  "facts": {
+    "counts": {
+      "tests": {
+        "cmd": "node --test --test-reporter=tap 2>&1",
+        "pattern": "# pass (\\d+)"
+      },
+      "eval cases": {
+        "cmd": "node evals/run.mjs --json",
+        "pattern": "\"cases\": (\\d+)"
+      },
+      "cases": {
+        "cmd": "node evals/run.mjs --json",
+        "pattern": "\"cases\": (\\d+)"
+      },
+      "suites": {
+        "json": "evals/cases.json",
+        "path": "suites.length"
+      },
+      "eval suites": {
+        "json": "evals/cases.json",
+        "path": "suites.length"
+      },
+      "dependencies": 0,
+      "runtime dependencies": 0,
+      "regressions": {
+        "file": "test/regressions.test.mjs",
+        "pattern": "REGRESSIONS = (\\d+)"
+      },
+      "production regressions": {
+        "file": "test/regressions.test.mjs",
+        "pattern": "REGRESSIONS = (\\d+)"
+      }
+    },
+    "tools": [
+      "Node.js",
+      "GitHub Actions",
+      "Claude Code"
+    ],
+    "years": [
+      2026
+    ]
+  },
+  "include": [
+    ".md"
+  ],
+  "exclude": [
+    "CHANGELOG.md",
+    "node_modules/",
+    "examples/",
+    "test/"
+  ],
+  "config": {
+    "allow_metrics": []
+  }
+}

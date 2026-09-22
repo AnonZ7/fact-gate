@@ -1,29 +1,37 @@
 {
   "name": "fact-gate",
-  "version": "1.0.0",
-  "description": "Verify LLM-generated text against a source of truth. Extracts every number, year, employer, title and tool the model asserts, checks each one, and blocks on fabrication. Zero dependencies, zero LLM calls.",
+  "version": "1.1.0",
+  "description": "Verify what an AI wrote against what is true. Blocks PR descriptions, READMEs, changelogs and reports that state a number, date, name or tool your diff, tests or facts contradict. Deterministic, zero dependencies, zero LLM calls. CLI, library, GitHub Action, Claude Code hook.",
   "type": "module",
   "main": "./src/index.mjs",
   "types": "./index.d.ts",
   "exports": {
     ".": { "types": "./index.d.ts", "import": "./src/index.mjs" },
-    "./extract": "./src/extract.mjs",
-    "./compare": "./src/compare.mjs",
-    "./normalize": "./src/normalize.mjs"
+    "./extract": { "types": "./index.d.ts", "import": "./src/extract.mjs" },
+    "./compare": { "types": "./index.d.ts", "import": "./src/compare.mjs" },
+    "./normalize": { "types": "./index.d.ts", "import": "./src/normalize.mjs" },
+    "./diff": { "types": "./index.d.ts", "import": "./src/diff.mjs" },
+    "./facts": { "types": "./index.d.ts", "import": "./src/facts.mjs" },
+    "./hook": { "types": "./index.d.ts", "import": "./src/hook.mjs" },
+    "./trust": { "types": "./index.d.ts", "import": "./src/trust.mjs" }
   },
   "bin": { "fact-gate": "./src/cli.mjs" },
-  "files": ["src/", "index.d.ts", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"],
+  "files": ["src/", "schema/", "index.d.ts", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"],
   "engines": { "node": ">=20" },
   "scripts": {
     "test": "node --test",
     "test:watch": "node --test --watch",
     "eval": "node evals/run.mjs",
-    "check": "npm test && npm run eval",
-    "example": "node examples/cv-tailoring.mjs"
+    "check": "npm test && npm run eval && npm run self-check",
+    "self-check": "node src/cli.mjs --target README.md --facts .fact-gate.json --label README.md --ignore-code",
+    "example": "node examples/cv-tailoring.mjs",
+    "example:pr": "node examples/pr-description.mjs"
   },
   "keywords": [
-    "llm", "hallucination", "fact-check", "guardrails", "verification", "evals",
-    "agents", "ai-safety", "grounding", "cv", "generation", "zero-dependency"
+    "llm", "hallucination", "hallucination-detection", "fact-check", "fact-checking", "guardrails",
+    "llm-guardrails", "verification", "grounding", "evals", "ai-safety", "agents", "claude-code",
+    "claude-code-hooks", "github-action", "pull-request", "pr-description", "readme", "changelog",
+    "documentation", "cv", "resume", "zero-dependency", "deterministic", "cli"
   ],
   "author": "Zakaria Aichaoui <zaichaoui@gmail.com>",
   "license": "MIT",

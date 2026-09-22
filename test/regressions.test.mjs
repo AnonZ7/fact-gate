@@ -7,7 +7,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { verifyFacts, numericClaims, formatReport } from '../src/index.mjs';
+
+const SOURCE_FILE = readFileSync(new URL(import.meta.url), 'utf8');
 
 const SOURCE = `
 Acme Robotics (client since Jul 2024): 85 n8n workflows built, 32 in daily production.
@@ -16,6 +19,13 @@ Storefront app: 846 tests (Playwright 461 + Flutter 242 + Vitest 61 + Jest 82).
 Platform: 580+ MCP tools, 160 sub-agents, 4,600+ automated tests.
 `;
 const check = (t, o = {}) => verifyFacts(t, { source: SOURCE, ...o });
+
+// Measured by .fact-gate.json so the README cannot claim a different number.
+const REGRESSIONS = 5;
+test(`exactly ${REGRESSIONS} dated production regressions are covered here`, () => {
+  const src = String(SOURCE_FILE);
+  assert.equal((src.match(/^test[(]'B[0-9] [(]20/gm) || []).length, REGRESSIONS);
+});
 
 test('B1 (2026-09-21): a trailing sub-count "…, 32 in daily production" is extracted from the source', () => {
   // Pre-fix: "32 workflows" was BLOCKED as fabricated — "source states 85 / 18 workflows, not 32".

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/AnonZ7/fact-gate/main/schema/fact-gate.schema.json",
+  "title": ".fact-gate.json",
+  "description": "Project configuration for fact-gate: the source of truth every AI-written document in this repository is checked against.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "_": { "type": "string", "description": "Free-form note." },
+    "facts": {
+      "description": "Structured facts, or a path to a JSON file holding them. Any value may be a measurement instead of a literal.",
+      "oneOf": [ { "type": "string" }, { "$ref": "#/$defs/facts" } ]
+    },
+    "source": { "type": "string", "description": "Path to a prose source of truth (relative to this file)." },
+    "jd": { "type": "string", "description": "Path to reference text the model was shown; figures echoed from it are not self-claims." },
+    "include": { "type": "array", "items": { "type": "string" }, "description": "Extensions (\".md\"), file names, or directory prefixes (\"docs/\") to check. Default: .md .mdx .markdown .txt .rst .adoc" },
+    "exclude": { "type": "array", "items": { "type": "string" }, "description": "Extensions, file names, or directory prefixes never checked." },
+    "nouns": { "type": "array", "items": { "type": "string" }, "description": "Extra countable nouns for your domain." },
+    "synonyms": { "type": "object", "additionalProperties": { "type": "string" }, "description": "noun → canonical noun." },
+    "warnUnsupported": { "type": "boolean", "default": true, "description": "Show unsupported claims to the agent as a system message (never blocks)." },
+    "config": {
+      "type": "object",
+      "properties": {
+        "allow_metrics": { "type": "array", "items": { "type": "string" }, "description": "Figures confirmed true that the facts do not state. Audited: an entry that rescues nothing is reported." },
+        "allow_facts": { "type": "array", "items": { "type": "string" } },
+        "forbidden_phrases": { "type": "array", "items": { "type": "string" } },
+        "warn_phrases": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "measurement": {
+      "type": "object",
+      "description": "A value derived at check time rather than typed.",
+      "properties": {
+        "cmd": { "type": "string", "description": "Shell command; its stdout+stderr is searched with `pattern`." },
+        "file": { "type": "string", "description": "Text file searched with `pattern`." },
+        "json": { "type": "string", "description": "JSON file; `path` selects a value (dotted, with .length / .keys)." },
+        "path": { "type": "string" },
+        "pattern": { "type": "string", "description": "Regular expression; the first capture group (or `group`) is the value." },
+        "group": { "type": "integer", "minimum": 0 },
+        "flags": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "countValue": { "oneOf": [ { "type": "number" }, { "type": "string", "pattern": "^[0-9][0-9.,]*\\+?$" }, { "$ref": "#/$defs/measurement" } ] },
+    "stringOrMeasurement": { "oneOf": [ { "type": "string" }, { "type": "number" }, { "$ref": "#/$defs/measurement" } ] },
+    "facts": {
+      "type": "object",
+      "properties": {
+        "counts": {
+          "type": "object",
+          "description": "\"<qualifiers> <noun>\" → number. The noun is the last vocabulary word; a trailing \"+\" marks a lower bound.",
+          "additionalProperties": { "$ref": "#/$defs/countValue" }
+        },
+        "years": { "type": "array", "items": { "$ref": "#/$defs/stringOrMeasurement" } },
+        "percentages": { "type": "array", "items": { "$ref": "#/$defs/stringOrMeasurement" } },
+        "amounts": { "type": "array", "items": { "$ref": "#/$defs/stringOrMeasurement" } },
+        "multipliers": { "type": "array", "items": { "$ref": "#/$defs/stringOrMeasurement" } },
+        "employers": { "type": "array", "items": { "$ref": "#/$defs/stringOrMeasurement" } },
+        "titles": { "type": "array", "items": { "$ref": "#/$defs/stringOrMeasurement" } },
+        "tools": { "type": "array", "items": { "$ref": "#/$defs/stringOrMeasurement" } },
+        "experience_start": { "$ref": "#/$defs/stringOrMeasurement", "description": "YYYY-MM — earliest role start, for tenure claims." }
+      },
+      "additionalProperties": true
+    }
+  }
+}

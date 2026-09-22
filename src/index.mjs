@@ -11,18 +11,24 @@
 // "fabricated" blocks. That is the whole point: a gate that never fails
 // anything is not a gate.
 
-import { stripMarkup, normalizeClaim } from './normalize.mjs';
+import { stripMarkup, stripCode, normalizeClaim } from './normalize.mjs';
 import { createExtractor } from './extract.mjs';
 import {
-  indexSource, findVerification, contradicts, lowerBoundCheck, containsPhrase,
+  indexSource, findVerification, contradictions, describeEntry, lowerBoundCheck, containsPhrase,
   earliestExperienceStart, experienceYears,
 } from './compare.mjs';
 
-export { stripMarkup, normalizeNumber, normalizeClaim } from './normalize.mjs';
+export { stripMarkup, stripCode, normalizeNumber, normalizeClaim } from './normalize.mjs';
 export { createExtractor, numericClaims, factClaims, DEFAULT_NOUNS, DEFAULT_SYNONYMS } from './extract.mjs';
 export { indexSource, claimsFromFacts, contradicts, lowerBoundCheck, findVerification, earliestExperienceStart, experienceYears } from './compare.mjs';
+export { parseDiff, factsFromDiff } from './diff.mjs';
+export { resolveFacts, measure, isMeasurement, CommandNotAllowed } from './facts.mjs';
+export { runHook, findConfig, projectedContent, loadConfig, isProjectConfig, CONFIG_NAME } from './hook.mjs';
+export { trust, isTrusted, trustFile } from './trust.mjs';
 
-export const VERSION = '1.0.0';
+import { factsFromDiff } from './diff.mjs';
+
+export const VERSION = '1.1.0';
 const BLOCK = 'fabricated';
 
 /**
@@ -33,6 +39,10 @@ const BLOCK = 'fabricated';
  * @param {string} [options.source]      canonical source of truth as prose
  * @param {string} [options.sourceText]  alias of `source`
  * @param {object} [options.facts]       structured facts (see claimsFromFacts)
+ * @param {string} [options.diff]        a unified diff or `git diff --numstat` output; its
+ *                                       file/line/test/dependency counts become facts
+ *                                       (see factsFromDiff) — the PR body is checked against
+ *                                       the change it describes
  * @param {string} [options.jd]          reference text the model was shown (e.g. a job
  *                                       description); figures quoted verbatim from it are
  *                                       echoes, not self-claims → downgraded to unsupported
@@ -41,14 +51,20 @@ const BLOCK = 'fabricated';
  * @param {string[]} [options.nouns]     extra countable nouns for this domain
  * @param {Record<string,string>} [options.synonyms]  noun synonyms
  * @param {number} [options.floorRatio]  minimum ratio for an "N+" floor (default 0.5)
+ * @param {number} [options.approxTolerance]  relative tolerance for "about N" claims (default 0.1)
+ * @param {boolean} [options.ignoreCode]  drop fenced / inline code from the target before
+ *                                       extraction (README examples are not claims)
  * @param {string} [options.label]       identifier for reports
  * @param {number} [options.now]         clock for tenure checks (tests)
  */
 export function verifyFacts(target, options = {}) {
   const {
-    source, sourceText, facts = null, jd, jdText, config = {},
-    nouns = [], synonyms = {}, floorRatio = 0.5, label = '', now = Date.now(),
+    source, sourceText, facts: givenFacts = null, diff, jd, jdText, config = {},
+    nouns = [], synonyms = {}, floorRatio = 0.5, approxTolerance = 0.1, label = '', now = Date.now(),
+    ignoreCode = false,
   } = options;
+  if (ignoreCode) target = stripCode(target);
+  const facts = typeof diff === 'string' ? mergeFacts(factsFromDiff(diff), givenFacts) : givenFacts;
   const src = typeof source === 'string' ? source : sourceText;
   const hasProse = typeof src === 'string' && src.trim().length > 0;
   const hasFacts = facts && typeof facts === 'object' && Object.keys(facts).length > 0;
@@ -69,6 +85,11 @@ export function verifyFacts(target, options = {}) {
   const targetPlain = stripMarkup(target);
 
   const actualYears = experienceYears(src || '', facts, now);
+  // Kinds the source says anything about. A source with no percentages at all
+  // cannot contradict "42%": that claim is unsupported, not fabricated. A
+  // source that states other percentages, and not this one, contradicts it.
+  const kindsInSource = new Set();
+  for (const key of sourceIdx.exact) kindsInSource.add(key.slice(0, key.indexOf('|')));
   const claims = [];
   const allowUsed = new Set();
 
@@ -93,10 +114,14 @@ export function verifyFacts(target, options = {}) {
         status = 'verified';
         reason = `consistent with ~${Math.floor(actualYears)} years since the earliest role`;
       }
-    } else if (sourceIdx.exact.has(key)) {
+    } else if (c.kind !== 'count' && sourceIdx.exact.has(key)) {
       status = 'verified';
       const via = rescuedBy(key);
       if (via) { allowUsed.add(via); reason = `allowed by allow_metrics entry "${via}"`; }
+    } else if (c.kind === 'count' && rescuedBy(key)) {
+      status = 'verified';
+      const via = rescuedBy(key);
+      allowUsed.add(via); reason = `allowed by allow_metrics entry "${via}"`;
     } else if (c.kind === 'count' && findVerification(sourceIdx, c)) {
       const hit = findVerification(sourceIdx, c);
       status = 'verified';
@@ -107,9 +132,24 @@ export function verifyFacts(target, options = {}) {
       else if (lb.result === 'exceeds') { status = BLOCK; reason = `source states ${lb.actual} ${c.noun}, which is below the claimed floor "${c.number}+"`; }
       else if (lb.result === 'too-low') { status = BLOCK; reason = `source states ${lb.actual} ${c.noun}; "${c.number}+" understates it by more than ${Math.round((1 - lb.floor) * 100)}%`; }
       else { status = 'unsupported'; reason = `source never states a count of "${c.noun}" comparable to "${c.claim}"`; }
+    } else if (c.kind === 'count' && c.approximate && contradictions(sourceIdx, c).length) {
+      // "roughly 500 skills" against 496 is honest English; against 800 it is not.
+      const best = contradictions(sourceIdx, c)[0];
+      const actual = Number(best.number), n = Number(c.number);
+      const off = Math.abs(n - actual) / Math.max(actual, 1);
+      if (off <= approxTolerance) { status = 'verified'; reason = `approximate: source states ${describeEntry(best, c.noun)}, within ${Math.round(approxTolerance * 100)}%`; }
+      else { status = BLOCK; reason = `source states ${describeEntry(best, c.noun)}; "${c.claim}" is ${Math.round(off * 100)}% off, beyond the ${Math.round(approxTolerance * 100)}% tolerance for an approximate claim`; }
     } else if (c.kind === 'count') {
-      const conflict = contradicts(sourceIdx, c);
-      if (conflict) { status = BLOCK; reason = `source states ${conflict.join(' / ')} ${c.noun}, not ${c.number}`; }
+      const conflict = contradictions(sourceIdx, c);
+      if (conflict.length) {
+        status = BLOCK;
+        const best = conflict[0];
+        const seenNums = new Set([best.number]);
+        const also = conflict.slice(1)
+          .filter(e => !best.modifiers.every(m => e.modifiers.includes(m)) || e.modifiers.length === best.modifiers.length)
+          .filter(e => !seenNums.has(e.number) && seenNums.add(e.number)).slice(0, 2);
+        reason = `source states ${describeEntry(best, c.noun)}, not ${c.number}${also.length ? ` (also ${also.map(e => describeEntry(e, c.noun)).join('; ')})` : ''}`;
+      }
       else {
         status = 'unsupported';
         const other = sourceIdx.byNoun.get(c.noun);
@@ -117,6 +157,9 @@ export function verifyFacts(target, options = {}) {
           ? `source counts "${c.noun}" only for a different subject (${other.map(e => e.number).join(' / ')}); nothing comparable to "${c.claim}"`
           : `source never states a count of "${c.noun}"`;
       }
+    } else if (!kindsInSource.has(c.kind)) {
+      status = 'unsupported';
+      reason = `source states no ${c.kind} at all, so "${c.claim}" cannot be checked — add one to the facts to verify or refute it`;
     } else {
       status = BLOCK;
       reason = `no ${c.kind} matching "${c.claim}" anywhere in the source`;
@@ -153,6 +196,16 @@ export function verifyFacts(target, options = {}) {
     allowlist: { used: [...allowUsed], unused: allowUnused },
     counts: { total: claims.length, verified: verified.length, unsupported: unsupported.length, fabricated: fabricated.length },
   };
+}
+
+/** Merge two facts objects; the second wins on a duplicate counts key. */
+export function mergeFacts(a, b) {
+  if (!a) return b; if (!b) return a;
+  const out = { ...a, ...b, counts: { ...(a.counts || {}), ...(b.counts || {}) } };
+  for (const k of ['years', 'percentages', 'amounts', 'multipliers', 'employers', 'titles', 'tools', 'files']) {
+    if (a[k] || b[k]) out[k] = [...new Set([...(a[k] || []), ...(b[k] || [])])];
+  }
+  return out;
 }
 
 /**

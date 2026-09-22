@@ -1,0 +1,45 @@
+# This repository gates itself.
+#
+# On every pull request: the PR description is checked against the PR's own
+# diff (file / line / test / dependency counts), and the README is checked
+# against measured facts (.fact-gate.json runs the suite to learn the test
+# count). A README that says "50 tests" when the suite has 78 fails the build.
+
+name: fact-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-description:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PR description vs its diff
+        uses: ./
+        with:
+          diff: 'true'
+          fail-on: block
+
+  readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: README vs measured facts
+        uses: ./
+        with:
+          target: README.md
+          facts: .fact-gate.json
+          diff: 'false'
+          label: README.md
+          fail-on: block

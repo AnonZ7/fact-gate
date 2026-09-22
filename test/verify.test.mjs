@@ -155,3 +155,21 @@ test('every claim carries a status and the counts add up', () => {
   assert.equal(r.claims.length, r.counts.total);
   assert.equal(r.counts.verified + r.counts.unsupported + r.counts.fabricated, r.counts.total);
 });
+
+// ------------------------------------------------------------ docs rules
+test('ignoreCode drops fenced and inline code, so README examples are not claims', () => {
+  const readme = ['Ships 846 tests.', '', '```', '$ tool --cut-costs 87%', '```', '', 'Run `fact-gate --since 2015`.'].join('\n');
+  const facts = { counts: { tests: 846 }, percentages: ['40%'], years: [2024] };
+  assert.equal(verifyFacts(readme, { facts }).verdict, 'block', 'without ignoreCode the example figures are judged');
+  const r = verifyFacts(readme, { facts, ignoreCode: true });
+  assert.equal(r.verdict, 'pass', formatReport(r));
+});
+
+test('a kind the source never mentions cannot be contradicted: unsupported, not fabricated', () => {
+  const r = verifyFacts('Cut costs 42% since 2019.', { facts: { counts: { tests: 846 } } });
+  assert.equal(r.verdict, 'warn', formatReport(r));
+  assert.equal(r.fabricated.length, 0);
+  assert.equal(r.unsupported.length, 2);
+  const r2 = verifyFacts('Cut costs 42%.', { facts: { counts: { tests: 846 }, percentages: ['40%'] } });
+  assert.equal(r2.verdict, 'block');
+});

@@ -12,9 +12,25 @@
 //      glued those together into "2024. 32 workflows" and blocked a true
 //      sentence. See test/regressions.test.mjs, B3.
 
+/**
+ * Remove fenced and inline code from markdown. A README's code blocks are
+ * examples and commands, not claims about the project: "cut costs 87%" inside
+ * a usage example is not the author asserting 87%.
+ */
+export function stripCode(text) {
+  return String(text ?? '')
+    .replace(/```[^`]*?(?:```|$)/gs, ' ')
+    .replace(/~~~[^~]*?(?:~~~|$)/gs, ' ')
+    .replace(/`[^`\n]*`/g, ' ')
+    .replace(/<pre[^>]*>[^]*?<\/pre>/gi, ' ');
+}
+
 /** Strip HTML tags, entity escapes and markdown emphasis down to plain prose. */
 export function stripMarkup(text) {
   return String(text ?? '')
+    .replace(/[\uFF10-\uFF19]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xFEE0))   // fullwidth digits
+    .replace(/[\u0660-\u0669]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48)) // Arabic-Indic digits
+    .replace(/[\u06F0-\u06F9]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0x06F0 + 48)) // Eastern Arabic-Indic digits
     .replace(/<[^>]*>/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -22,7 +38,9 @@ export function stripMarkup(text) {
     .replace(/&nbsp;/g, ' ')
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
     .replace(/[*_`]{1,3}/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ ?\r?\n ?/g, '\n')
+    .replace(/\n{2,}/g, '\n')
     .trim();
 }
 
@@ -72,7 +90,22 @@ export function normalizeClaim(claim) {
   return s.replace(/[,\s]+/g, ' ').replace(/[.;:,]+$/g, '').trim();
 }
 
-/** Lowercase a modifier list and drop empties. */
+/**
+ * Qualifier synonyms. "3 new tests" and "tests added: 3" are the same claim;
+ * a fabrication check that treats them as different subjects cannot compare
+ * them, and an inflated "adds 10 tests" would sail through as unsupported.
+ */
+export const MODIFIER_SYNONYMS = {
+  new: 'added', created: 'added', inserted: 'added', introduced: 'added', additional: 'added',
+  removed: 'deleted', dropped: 'deleted', deletions: 'deleted', removals: 'deleted',
+  updated: 'modified', edited: 'modified',
+  touched: 'changed', affected: 'changed',
+};
+
+/** Lowercase a modifier list, fold synonyms, drop empties. */
 export function normalizeModifiers(words) {
-  return (words || []).map(w => String(w).toLowerCase().trim()).filter(Boolean);
+  return (words || [])
+    .map(w => String(w).toLowerCase().trim())
+    .filter(Boolean)
+    .map(w => MODIFIER_SYNONYMS[w] ?? w);
 }

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <!-- shield mark -->
+  <g transform="translate(96,120)">
+    <path d="M48,0 L96,18 V60 C96,100 70,128 48,140 C26,128 0,100 0,60 V18 Z" fill="#16a34a"/>
+    <path d="M30,68 l14,14 l26,-32" stroke="#052e16" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="220" y="176" fill="#f8fafc" font-size="84" font-weight="800" letter-spacing="-2">fact-gate</text>
+  <text x="222" y="236" fill="#c7d2fe" font-size="34" font-weight="500">Verify what an AI wrote against what is true.</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="24">
+    <rect x="96" y="290" width="1088" height="196" rx="16" fill="#0b1020" stroke="#1e293b"/>
+    <text x="124" y="336" fill="#94a3b8">$ <tspan fill="#e2e8f0">fact-gate --target pr-body.md --git origin/main</tspan></text>
+    <text x="124" y="382" fill="#f87171" font-weight="700">BLOCK</text>
+    <text x="216" y="382" fill="#cbd5e1">4 claims: <tspan fill="#f87171">4 fabricated</tspan></text>
+    <text x="124" y="424" fill="#cbd5e1"><tspan fill="#fde68a">"40 tests"</tspan> — source states <tspan fill="#4ade80">4 tests (added)</tspan>, not 40</text>
+    <text x="124" y="462" fill="#cbd5e1"><tspan fill="#fde68a">"no new dependencies"</tspan> — source states <tspan fill="#4ade80">1 dependencies (added)</tspan>, not 0</text>
+  </g>
+
+  <g font-size="25" fill="#94a3b8">
+    <text x="96" y="540">Checks PR descriptions, READMEs, changelogs and reports.</text>
+    <text x="96" y="578" fill="#a5b4fc">Runs as a GitHub Action, a Claude Code hook, a CLI, a library.</text>
+    <text x="96" y="614" fill="#64748b" font-size="21">deterministic · zero dependencies · zero LLM calls · github.com/AnonZ7/fact-gate</text>
+  </g>
+</svg>

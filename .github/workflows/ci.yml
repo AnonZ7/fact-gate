@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -20,8 +23,10 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: unit + regression tests
         run: npm test
-      - name: eval set (precision / recall of the gate itself)
+      - name: eval set (precision / recall of the gate itself, per suite)
         run: npm run eval
+      - name: README vs measured facts (the repo gates itself)
+        run: npm run self-check
       - name: CLI smoke
         shell: bash
         run: |
@@ -30,3 +35,32 @@ jobs:
           if echo "Ran 1,200 tests." | node src/cli.mjs --source examples/source.md; then
             echo "expected a block"; exit 1
           fi
+          node src/cli.mjs --target examples/pr-body.md --diff examples/pr.diff --quiet
+          if node src/cli.mjs --target examples/pr-body-inflated.md --diff examples/pr.diff --format github; then
+            echo "expected a block"; exit 1
+          fi
+          echo '{"tool_name":"Write","tool_input":{"file_path":"'"$PWD"'/README.md","content":"Ships 999 tests."}}' | node src/cli.mjs hook | grep -q '"permissionDecision":"deny"'
+
+  action:
+    name: the GitHub Action, used from this repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: truthful PR body vs example diff (must pass)
+        uses: ./
+        with:
+          target: examples/pr-body.md
+          diff-file: examples/pr.diff
+          label: example
+          fail-on: block
+      - name: inflated PR body vs example diff (must block)
+        id: inflated
+        uses: ./
+        with:
+          target: examples/pr-body-inflated.md
+          diff-file: examples/pr.diff
+          fail-on: never
+      - name: verdict outputs are wired
+        run: |
+          echo "verdict=${{ steps.inflated.outputs.verdict }} fabricated=${{ steps.inflated.outputs.fabricated }}"
+          test "${{ steps.inflated.outputs.verdict }}" = "block"

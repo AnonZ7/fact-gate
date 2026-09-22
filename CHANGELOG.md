@@ -1,5 +1,87 @@
 # Changelog
 
+## 1.1.0 — 2026-09-22
+
+The gate moves from "run it by hand on a CV" to "it runs where the text is
+written". Same engine, three new places it fires, and three new kinds of
+truth it can check against.
+
+### Added
+
+- **A diff is a source of truth.** `--diff <file>` / `--git <base>` /
+  `verifyFacts(text, { diff })` turn a unified diff (or `git diff --numstat`)
+  into facts: files by status, lines by direction, test cases added,
+  dependencies added or removed (npm, pip, go.mod, Cargo). A PR description
+  is verified against the change it describes. `parseDiff`, `factsFromDiff`.
+- **Measured facts.** Any value in a facts file may be `{"cmd"|"file"|"json",
+  "pattern"}` and is resolved at check time, so the README is checked against
+  the test suite's own output, not against a number someone typed last month.
+  `fact-gate measure`, `resolveFacts`, `measure`. A measurement that fails is
+  an error, never a silent skip.
+- **GitHub Action.** `uses: AnonZ7/fact-gate@v1` checks the PR body against
+  the PR diff (default) or any file against facts/source; annotations, a
+  step summary with the measured facts, and `verdict` / `report` outputs.
+- **Claude Code hook.** `fact-gate hook` as a PreToolUse hook on Write / Edit
+  / MultiEdit denies a save whose numbers contradict `.fact-gate.json` and
+  hands the reasons back to the agent. `fact-gate init` scaffolds the config
+  and prints the settings snippet. Inert when no config is found; never
+  breaks a session.
+- **Extraction:** verbs qualify a count (`adds 4 tests` → tests/added);
+  participles after the noun (`6 lines deleted`); floors from words (`over
+  4,000`, `more than 30`, `at least 5`); approximate claims (`roughly 500`,
+  `about 5k`, `~85`) judged with a 10% tolerance; spelled-out small counts
+  (`two new files`) and `no` in a change context (`no new dependencies` = 0
+  added); colon breakdowns (`6 files: 2 new, 1 deleted, 3 modified`);
+  qualified noun-first forms (`hook files: 27`); singular nouns (`1
+  dependency`); a code-change vocabulary (files, insertions, deletions,
+  dependencies, packages, functions, …).
+- **Comparison:** a qualified claim is judged by the source entries that share
+  its qualifier before the generous number-only match applies, so `no new
+  dependencies` meets `dependencies added: 1` and loses instead of meeting
+  `dependencies deleted: 0` and winning. Contradiction messages name the
+  best-matching figure with its qualifiers.
+- **Output:** `--format markdown` (table for PR comments), `--format github`
+  (annotations + `$GITHUB_STEP_SUMMARY` + `$GITHUB_OUTPUT`), colour on a TTY,
+  `--target-env`, `--no-measure`, `--no-color`.
+- **Evals:** three suites (CV vs profile, PR body vs diff, docs vs facts)
+  with per-suite precision and recall, so a weak domain cannot hide in the
+  average. `evals/run.mjs --json`.
+- JSON Schema for `.fact-gate.json`; `mergeFacts`; TypeScript declarations
+  for everything above.
+- The repository gates its own README with itself
+  (`.github/workflows/fact-gate.yml`, `.fact-gate.json`).
+- **Trust model for command measurements.** In hook mode a config's `cmd`
+  measurements run only after `fact-gate trust <config>` has recorded the
+  file's hash in `~/.fact-gate/trusted.json` (or with `FACT_GATE_ALLOW_CMD=1`
+  in CI). Until then literal, `file` and `json` facts still gate, and the
+  agent is told why the command was skipped. Editing the config revokes trust.
+- Negated counts (`does not touch 12 files`, `doesn't add 40 tests`,
+  `without adding 300 lines`) are not claims of that count.
+- Fullwidth and Arabic-Indic digits normalise to ASCII before extraction.
+- Unknown `--flags` are a usage error (exit 2) instead of being ignored.
+
+### Fixed
+
+- **Hook ordering (pre-release review, critical):** the include/exclude filter
+  now runs before anything in the config is loaded, so a write to a file the
+  config does not cover runs nothing from the config. Pinned by
+  `test/security.test.mjs`.
+- A heading on the line above a `Tests: 999` claim was captured as a
+  qualifier, turning a fabrication into a warning. Noun-first qualifiers must
+  now sit on the same line; line breaks survive normalisation.
+- An `Edit` whose `old_string` is absent from the file is skipped instead of
+  being judged against the unmodified file.
+- A currency amount followed by a noun (`$90,000 deal`) was also read as a
+  count once singular nouns entered the vocabulary. Counts now refuse a
+  currency prefix.
+- `total` / `overall` / `combined` are vacuous qualifiers and no longer make
+  `total tests: 900` incomparable with `tests: 846`.
+
+### Changed
+
+- `contradicts()` is kept; `contradictions()` returns the ranked entries the
+  messages are built from.
+
 ## 1.0.0 — 2026-09-22
 
 First public release. Extracted from a private CV-tailoring pipeline where it
@@ -31,33 +113,10 @@ against a week of production failures and rebuilt.
 
 ### Added
 
-- Structured `facts` input (`counts`, `years`, `percentages`, `amounts`,
-  `multipliers`, `employers`, `titles`, `tools`, `experience_start`) — usable
-  alone or alongside prose.
-- Range extraction: both ends of `4-5 hours`, `$3K–$4.5K`, `40-60%`.
-- Noun-first extraction: `tests: 846`, `Tools — 585`.
-- Allow-list audit: `result.allowlist.{used, unused}` and an
-  `ALLOWLIST_UNUSED` note in the report, so an override that no longer rescues
-  anything is visible. (Motivated by a real whitelist that had been added to
-  push a false timezone claim past the gate.)
-- Configurable noun vocabulary and synonyms via `createExtractor` / `nouns`.
-- Tenure checks accept `facts.experience_start` as well as prose date ranges.
-- `--jd` / `jd` reference-text echo downgrade, now documented as general
-  (any text the model was shown), not CV-specific.
-- CLI (`fact-gate`) with `--json`, `--strict`, `--quiet`, stdin input, and
-  exit codes 0/1/2.
-- Eval harness (`npm run eval`): 33 cases, precision/recall on the block
-  decision, fails CI on regression.
-- TypeScript declarations (`index.d.ts`).
-- CI on Node 20/22/24, Linux + Windows.
-
-### Changed
-
-- `sourceText` → `source`, `jdText` → `jd` (old names still accepted).
-- `formatFactFailures` → `formatReport` (alias kept).
-- Messages say "source", not "profile".
-- Amount claims normalise to `$N` regardless of the original currency symbol
-  (`€`, `£` still extract).
+- Structured `facts` input, range extraction, noun-first extraction,
+  allow-list audit (`result.allowlist.{used, unused}`), configurable nouns,
+  `jd` reference-echo downgrade, CLI with exit codes 0/1/2, eval harness,
+  TypeScript declarations, CI on Node 20/22/24 × Linux/Windows.
 
 ### Provenance
 

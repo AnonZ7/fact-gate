@@ -34,7 +34,7 @@ const MONTH_INDEX = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, au
 // The START half of "Mon YYYY – Mon YYYY" / "Mon YYYY – Present".
 const DATE_RANGE_START_RE = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{4})\s*[–—-]/gi;
 const ISO_MONTH_RE = /^(\d{4})-(\d{2})(?:-\d{2})?$/;
-const STOP = new Set(['in', 'of', 'on', 'for', 'at', 'the', 'a', 'an', 'across', 'which', 'are', 'is', 'with']);
+const STOP = new Set(['in', 'of', 'on', 'for', 'at', 'the', 'a', 'an', 'across', 'which', 'are', 'is', 'with', 'total', 'overall', 'combined']);
 
 /** Whole-token containment tolerant of whitespace differences. */
 export function containsPhrase(haystack, value) {
@@ -125,8 +125,16 @@ export function indexSource({ sourceText = '', facts = null, allowMetrics = [], 
 export function findVerification(source, claim) {
   const entries = source.byNoun.get(claim.noun);
   if (!entries) return null;
-  const hit = entries.find(e => e.number === claim.number);
-  return hit || null;
+  const targetMods = new Set(claim.modifiers || []);
+  // A qualified claim is judged by the entries that share its qualifier
+  // first: "no new dependencies" (0, added) must meet "dependencies added: 1"
+  // and lose, not meet "dependencies deleted: 0" and win. Only when nothing
+  // shares a qualifier does the generous number-only match apply.
+  if (targetMods.size) {
+    const related = entries.filter(e => overlap(targetMods, e.modifiers) > 0);
+    if (related.length) return related.find(e => e.number === claim.number) || null;
+  }
+  return entries.find(e => e.number === claim.number) || null;
 }
 
 function comparableForContradiction(entry, targetMods) {
@@ -148,6 +156,28 @@ export function contradicts(source, claim) {
     .filter(e => e.number !== claim.number)
     .map(e => e.number);
   return conflicting.length ? [...new Set(conflicting)] : null;
+}
+
+/**
+ * The comparable source entries that contradict a claim, best match first
+ * (most shared qualifiers, then the bare figure), each with its qualifiers so
+ * a message can say "6 files changed", not "6 / 1 files".
+ * @returns {Array<{number: string, modifiers: string[], shared: number}>}
+ */
+export function contradictions(source, claim) {
+  const entries = source.byNoun.get(claim.noun);
+  if (!entries) return [];
+  const targetMods = new Set(claim.modifiers || []);
+  return entries
+    .filter(e => comparableForContradiction(e, targetMods) && e.number !== claim.number)
+    .map(e => ({ number: e.number, modifiers: [...e.modifiers], shared: overlap(targetMods, e.modifiers) }))
+    .sort((a, b) => b.shared - a.shared || a.modifiers.length - b.modifiers.length);
+}
+
+/** "6 files changed" / "846 tests" — a source figure with its qualifiers, for messages. */
+export function describeEntry(entry, noun) {
+  const mods = entry.modifiers || [];
+  return mods.length ? `${entry.number} ${noun} (${mods.join(', ')})` : `${entry.number} ${noun}`;
 }
 
 /**

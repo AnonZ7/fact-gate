@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="270" viewBox="0 0 880 270" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="14">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect width="880" height="270" rx="14" fill="#0f172a"/>
+
+  <!-- inputs -->
+  <g>
+    <rect x="24" y="30" width="200" height="64" rx="10" fill="#1e293b" stroke="#334155"/>
+    <text x="124" y="56" text-anchor="middle" fill="#e2e8f0" font-weight="600">what the AI wrote</text>
+    <text x="124" y="78" text-anchor="middle" fill="#94a3b8" font-size="12">PR body · README · changelog · CV</text>
+
+    <rect x="24" y="176" width="200" height="64" rx="10" fill="#1e293b" stroke="#334155"/>
+    <text x="124" y="202" text-anchor="middle" fill="#e2e8f0" font-weight="600">what is true</text>
+    <text x="124" y="224" text-anchor="middle" fill="#94a3b8" font-size="12">the diff · measured facts · prose</text>
+  </g>
+
+  <!-- extract -->
+  <g>
+    <rect x="290" y="30" width="170" height="64" rx="10" fill="#312e81" stroke="#4338ca"/>
+    <text x="375" y="56" text-anchor="middle" fill="#e0e7ff" font-weight="600">extract claims</text>
+    <text x="375" y="78" text-anchor="middle" fill="#a5b4fc" font-size="12">"adds 40 tests" → 40 tests/added</text>
+
+    <rect x="290" y="176" width="170" height="64" rx="10" fill="#312e81" stroke="#4338ca"/>
+    <text x="375" y="202" text-anchor="middle" fill="#e0e7ff" font-weight="600">extract facts</text>
+    <text x="375" y="224" text-anchor="middle" fill="#a5b4fc" font-size="12">same rules on both sides</text>
+  </g>
+
+  <!-- compare -->
+  <rect x="520" y="95" width="150" height="80" rx="10" fill="#134e4a" stroke="#0f766e"/>
+  <text x="595" y="124" text-anchor="middle" fill="#ccfbf1" font-weight="600">compare</text>
+  <text x="595" y="144" text-anchor="middle" fill="#99f6e4" font-size="12">generous to confirm</text>
+  <text x="595" y="160" text-anchor="middle" fill="#99f6e4" font-size="12">strict to contradict</text>
+
+  <!-- verdict buckets -->
+  <g font-size="13">
+    <rect x="730" y="30" width="126" height="46" rx="10" fill="#052e16" stroke="#16a34a"/>
+    <text x="793" y="50" text-anchor="middle" fill="#86efac" font-weight="600">verified</text>
+    <text x="793" y="66" text-anchor="middle" fill="#4ade80" font-size="11">the source states it</text>
+
+    <rect x="730" y="112" width="126" height="46" rx="10" fill="#422006" stroke="#d97706"/>
+    <text x="793" y="132" text-anchor="middle" fill="#fde68a" font-weight="600">unsupported</text>
+    <text x="793" y="148" text-anchor="middle" fill="#fbbf24" font-size="11">surfaced, never blocks</text>
+
+    <rect x="730" y="194" width="126" height="46" rx="10" fill="#450a0a" stroke="#dc2626"/>
+    <text x="793" y="214" text-anchor="middle" fill="#fecaca" font-weight="600">fabricated</text>
+    <text x="793" y="230" text-anchor="middle" fill="#f87171" font-size="11">blocks · exit 1 · deny</text>
+  </g>
+
+  <!-- arrows -->
+  <g stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <path d="M224,62 L288,62"/>
+    <path d="M224,208 L288,208"/>
+    <path d="M460,62 C500,62 500,120 518,122"/>
+    <path d="M460,208 C500,208 500,150 518,148"/>
+    <path d="M670,120 C700,120 700,53 728,53"/>
+    <path d="M670,135 L728,135"/>
+    <path d="M670,150 C700,150 700,217 728,217"/>
+  </g>
+
+  <text x="440" y="258" text-anchor="middle" fill="#475569" font-size="12">no model in the loop · same input, same verdict · every verdict carries a reason the agent can act on</text>
+</svg>

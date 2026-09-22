@@ -14,9 +14,16 @@ story-provenance-check.mjs:
 
 Original to fact-gate:
   - the three-way verified / unsupported / fabricated classification
-  - the asymmetric comparison rules (generous verification, strict contradiction)
-  - lower-bound ("N+") checking with a floor ratio
-  - parenthetical-breakdown, trailing sub-count and noun-first extraction
+  - the asymmetric comparison rules (generous verification, strict contradiction,
+    qualifier-first matching)
+  - lower-bound ("N+", "over N", "more than N") checking with a floor ratio, and
+    approximate ("about N") checking with a tolerance
+  - parenthetical-breakdown, colon-breakdown, trailing sub-count, noun-first,
+    verb-qualified, participle-qualified and spelled-out count extraction
   - range extraction (both ends of "4-5 hours", "$3K–$4.5K", "40-60%")
+  - the diff-as-source-of-truth parser (files, lines, test cases, dependencies)
+  - measured facts ({cmd|file|json, pattern}) and their audit trail
   - structured facts input, allowlist auditing, reference-text echo downgrade,
-    spelled-out tenure checking, the CLI, the eval harness and the tests
+    spelled-out tenure checking, the kind-absent rule, code-block exclusion
+  - the CLI, the GitHub Action, the Claude Code hook, the JSON Schema,
+    the eval harness and the tests

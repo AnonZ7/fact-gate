@@ -1,0 +1,36 @@
+# Publish to npm with trusted publishing (OIDC) — no stored token, and npm
+# attaches SLSA provenance automatically.
+#
+# One-time setup on npmjs.com → package → Settings → Trusted publishers:
+#   repository AnonZ7/fact-gate, workflow publish.yml, environment (none).
+# Then: create a GitHub release with tag vX.Y.Z matching package.json.
+
+name: publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: npm >= 11.5 (trusted publishing)
+        run: npm install -g npm@latest
+      - name: version matches the release tag
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          [ "$pkg" = "$tag" ] || { echo "package.json is $pkg but the tag is $tag"; exit 1; }
+      - run: npm test
+      - run: npm run eval
+      - run: npm publish --access public

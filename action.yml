@@ -1,0 +1,135 @@
+name: 'fact-gate'
+description: 'Fail the PR when AI-written text (PR description, README, changelog) contradicts the diff or measured facts. Zero deps, zero LLM calls.'
+author: 'Zakaria Aichaoui'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  target:
+    description: 'File to check. Leave empty to check the pull request body.'
+    required: false
+    default: ''
+  diff:
+    description: 'Verify against the diff of this PR (file/line/test/dependency counts). true|false'
+    required: false
+    default: 'true'
+  base:
+    description: 'Git ref or SHA to diff against. Defaults to the PR base SHA.'
+    required: false
+    default: ''
+  diff-file:
+    description: 'Verify against a diff already on disk (unified or --numstat) instead of computing one.'
+    required: false
+    default: ''
+  facts:
+    description: 'Path to a facts JSON file (values may be measurements: {"cmd"|"file"|"json","pattern"}).'
+    required: false
+    default: ''
+  source:
+    description: 'Path to a prose source of truth.'
+    required: false
+    default: ''
+  config:
+    description: 'Path to a gate config JSON {allow_metrics, allow_facts, forbidden_phrases, warn_phrases}.'
+    required: false
+    default: ''
+  nouns:
+    description: 'Comma-separated extra countable nouns for your domain.'
+    required: false
+    default: ''
+  label:
+    description: 'Label shown in the report.'
+    required: false
+    default: ''
+  fail-on:
+    description: 'When to fail the step: block (default) | warn | never'
+    required: false
+    default: 'block'
+  ignore-code:
+    description: 'Drop fenced and inline code from the target before checking (examples are not claims). true|false'
+    required: false
+    default: 'true'
+
+outputs:
+  verdict:
+    description: 'pass | warn | block'
+    value: ${{ steps.gate.outputs.verdict }}
+  fabricated:
+    description: 'Number of fabricated claims'
+    value: ${{ steps.gate.outputs.fabricated }}
+  unsupported:
+    description: 'Number of unsupported claims'
+    value: ${{ steps.gate.outputs.unsupported }}
+  verified:
+    description: 'Number of verified claims'
+    value: ${{ steps.gate.outputs.verified }}
+  report:
+    description: 'Markdown report (paste into a PR comment)'
+    value: ${{ steps.gate.outputs.report }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: gate
+      shell: bash
+      env:
+        FG_TARGET: ${{ inputs.target }}
+        FG_DIFF: ${{ inputs.diff }}
+        FG_BASE: ${{ inputs.base }}
+        FG_DIFF_FILE: ${{ inputs['diff-file'] }}
+        FG_FACTS: ${{ inputs.facts }}
+        FG_SOURCE: ${{ inputs.source }}
+        FG_CONFIG: ${{ inputs.config }}
+        FG_NOUNS: ${{ inputs.nouns }}
+        FG_LABEL: ${{ inputs.label }}
+        FG_FAIL_ON: ${{ inputs['fail-on'] }}
+        FG_IGNORE_CODE: ${{ inputs['ignore-code'] }}
+        PR_BODY: ${{ github.event.pull_request.body }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        set -uo pipefail
+        args=(check --format github)
+        if [ -n "$FG_TARGET" ]; then
+          args+=(--target "$FG_TARGET")
+        else
+          if [ -z "${PR_BODY:-}" ]; then
+            echo "fact-gate: no target file and no pull request body to check — skipping"
+            echo "verdict=pass" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          args+=(--target-env PR_BODY --label "PR #${PR_NUMBER:-?} description")
+        fi
+        if [ -n "$FG_DIFF_FILE" ]; then
+          args+=(--diff "$FG_DIFF_FILE")
+        elif [ "$FG_DIFF" = "true" ]; then
+          base="${FG_BASE:-$PR_BASE_SHA}"
+          if [ -n "$base" ]; then
+            git fetch --no-tags --depth=1 origin "$base" >/dev/null 2>&1 || git fetch --no-tags origin "$base" >/dev/null 2>&1 || true
+            if git rev-parse --verify --quiet "$base^{commit}" >/dev/null || git rev-parse --verify --quiet "origin/$base" >/dev/null; then
+              ref="$base"; git rev-parse --verify --quiet "$base^{commit}" >/dev/null || ref="origin/$base"
+              git diff "$ref" HEAD > "$RUNNER_TEMP/fact-gate.diff"
+              args+=(--diff "$RUNNER_TEMP/fact-gate.diff")
+            else
+              echo "::warning title=fact-gate::could not resolve base '$base' for the diff — checking without it"
+            fi
+          fi
+        fi
+        [ -n "$FG_FACTS" ]  && args+=(--facts "$FG_FACTS")
+        [ -n "$FG_SOURCE" ] && args+=(--source "$FG_SOURCE")
+        [ -n "$FG_CONFIG" ] && args+=(--config "$FG_CONFIG")
+        [ -n "$FG_NOUNS" ]  && args+=(--nouns "$FG_NOUNS")
+        [ -n "$FG_LABEL" ]  && args+=(--label "$FG_LABEL")
+        [ "$FG_FAIL_ON" = "warn" ] && args+=(--strict)
+        [ "$FG_IGNORE_CODE" = "true" ] && args+=(--ignore-code)
+        case " ${args[*]} " in
+          *" --diff "*|*" --facts "*|*" --source "*) ;;
+          *)
+            echo "::warning title=fact-gate::nothing to check against (no diff could be computed and no facts/source given) — skipped"
+            echo "verdict=skipped" >> "$GITHUB_OUTPUT"; exit 0;;
+        esac
+        node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}"
+        code=$?
+        if [ "$code" -eq 2 ]; then exit 2; fi
+        if [ "$FG_FAIL_ON" = "never" ]; then exit 0; fi
+        exit "$code"

@@ -28,6 +28,13 @@ export const DEFAULT_NOUNS = [
   'staff', 'people', 'contractors', 'vendors', 'students', 'sites', 'apps',
   'stores', 'orders', 'transactions', 'invoices', 'tickets', 'incidents', 'events',
   'models', 'prompts', 'evals', 'runs', 'jobs', 'queues', 'webhooks', 'schemas',
+  // Code-change vocabulary: PR descriptions, changelogs, release notes.
+  'files', 'insertions', 'deletions', 'additions', 'changes', 'dependencies',
+  'packages', 'functions', 'methods', 'classes', 'components', 'directories',
+  'folders', 'branches', 'releases', 'versions', 'issues', 'bugs', 'fixes',
+  'features', 'warnings', 'errors', 'vulnerabilities', 'cases', 'assertions',
+  'benchmarks', 'rules', 'detectors', 'languages', 'platforms', 'regressions',
+  'defects', 'suites', 'claims', 'measurements', 'checks', 'verdicts',
 ];
 
 /** Different words for the same thing: a restatement, not a fabrication. */
@@ -37,8 +44,35 @@ export const DEFAULT_SYNONYMS = {
   'sub-agents': 'agents',
 };
 
+/**
+ * A verb right before a count is a qualifier: "adds 4 tests" is a claim about
+ * tests ADDED, and must be judged against "tests added: 4", not against the
+ * size of the whole suite. Folded through MODIFIER_SYNONYMS afterwards.
+ */
+const VERB_MODIFIERS = {
+  add: 'added', adds: 'added', added: 'added', adding: 'added',
+  introduce: 'added', introduces: 'added', create: 'added', creates: 'added',
+  remove: 'deleted', removes: 'deleted', removed: 'deleted', removing: 'deleted',
+  delete: 'deleted', deletes: 'deleted', deleted: 'deleted', drop: 'deleted', drops: 'deleted', dropped: 'deleted',
+  modify: 'modified', modifies: 'modified', modified: 'modified',
+  update: 'modified', updates: 'modified', updated: 'modified',
+  change: 'changed', changes: 'changed', changed: 'changed', touch: 'changed', touches: 'changed', touched: 'changed',
+  rename: 'renamed', renames: 'renamed', renamed: 'renamed',
+};
+const CHANGE_MODIFIERS = new Set(['added', 'deleted', 'modified', 'changed', 'renamed', 'breaking']);
+// "6 lines deleted", "3 files changed": a participle right after the noun qualifies it.
+const POST_NOUN_RE = /^\s+(added|deleted|removed|changed|modified|touched|created|renamed|inserted|updated|affected)\b/i;
+// "over 4,000 tests", "more than 30 workflows", "at least 5 tools" — a floor, like "N+".
+const FLOOR_LOOKBACK_RE = /\b(?:over|above|more than|at least|exceeds|exceeding|upwards of|no fewer than|>=?)\s*$/i;
+// "roughly 500 skills", "about 5k tests", "~85 workflows" — approximate, judged with a tolerance.
+// "does not touch 12 files", "without adding any tests", "never 500 users":
+// a negated count is not a claim of that count. Dropped, not compared.
+const NEGATION_LOOKBACK_RE = /(?:\b(?:not|never|without|neither|nor|no longer)|n't)\b(?:\s+\w+){0,3}\s*$/i;
+const APPROX_LOOKBACK_RE = /(?:\b(?:about|around|roughly|approximately|approx\.?|nearly|almost|close to|some|circa|c\.)\s*|[~≈])$/i;
+const VERB_LOOKBACK = /([A-Za-z]+)\s+(?:(?:a|an|the|some|another|about|around|roughly|over|only|just|and)\s+){0,2}$/;
+
 /** Words that carry no meaning as a qualifier ("32 in daily production"). */
-const MODIFIER_STOPWORDS = new Set(['in', 'of', 'on', 'for', 'at', 'the', 'a', 'an', 'across', 'which', 'are', 'is']);
+const MODIFIER_STOPWORDS = new Set(['in', 'of', 'on', 'for', 'at', 'the', 'a', 'an', 'across', 'which', 'are', 'is', 'total', 'overall', 'combined', 'currently', 'now']);
 
 // Number token. Grouped thousands FIRST (each group exactly 3 digits), then a
 // plain integer/decimal. This is what keeps "2024. 32" apart: after "2024" the
@@ -46,8 +80,9 @@ const MODIFIER_STOPWORDS = new Set(['in', 'of', 'on', 'for', 'at', 'the', 'a', '
 // branch fails and the plain branch stops at the boundary.
 const NUM = String.raw`(?:\d{1,3}(?:[,.\s  ]\d{3})+|\d+(?:[.,]\d+)?)`;
 const MAG = String.raw`(?:\s?[kKmMbB]\b)?`;
-// A number may not start inside a token: "n8n" must not yield an 8.
-const NOT_IN_TOKEN = String.raw`(?<![A-Za-z0-9])`;
+// A number may not start inside a token ("n8n" must not yield an 8) and a
+// currency amount is not a count ("$90,000 deal" is an amount, not 90,000 deals).
+const NOT_IN_TOKEN = String.raw`(?<![A-Za-z0-9$€£,.])`;
 // A qualifier starts with a letter and may contain digits ("n8n", "gpt-4").
 const QUALIFIER = String.raw`[A-Za-z][A-Za-z0-9-]*`;
 
@@ -93,9 +128,25 @@ const TOOL_PHRASE_RE = /^(?=.{1,60}$)[\p{L}\p{N}.][\p{L}\p{N}+#./-]*(?:\s+[\p{L}
  * @param {Record<string,string>} [options.synonyms]  noun -> canonical noun
  * @param {number} [options.modifierWindow] words allowed between number and noun (default 4)
  */
+function singularOf(plural) {
+  if (/(?:ss|us|is)$/.test(plural) || plural.length < 4) return null;
+  if (/ies$/.test(plural)) return plural.slice(0, -3) + 'y';
+  if (/(?:ches|shes|xes|sses)$/.test(plural)) return plural.slice(0, -2);
+  if (/s$/.test(plural)) return plural.slice(0, -1);
+  return null;
+}
+const NO_SINGULAR = new Set(['staff', 'people', 'evals', 'sub-agents', 'series', 'news']);
+
 export function createExtractor({ nouns = [], synonyms = {}, modifierWindow = 4 } = {}) {
-  const NOUNS = [...new Set([...DEFAULT_NOUNS, ...nouns.map(n => String(n).toLowerCase())])];
-  const SYN = { ...DEFAULT_SYNONYMS, ...synonyms };
+  const plural = [...new Set([...DEFAULT_NOUNS, ...nouns.map(n => String(n).toLowerCase())])];
+  // "1 dependency", "1 file deleted": the singular is a restatement of the plural noun.
+  const SYN = { ...DEFAULT_SYNONYMS };
+  for (const n of plural) {
+    const sg = NO_SINGULAR.has(n) ? null : singularOf(n);
+    if (sg && !plural.includes(sg) && !(sg in SYN)) SYN[sg] = DEFAULT_SYNONYMS[n] ?? n;
+  }
+  Object.assign(SYN, synonyms);
+  const NOUNS = [...new Set([...plural, ...Object.keys(SYN)])].sort((a, b) => b.length - a.length);
   const nounSet = new Set(NOUNS);
   const NOUN = `(${NOUNS.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
   const canon = (n) => { const l = String(n).toLowerCase(); return SYN[l] ?? l; };
@@ -109,9 +160,14 @@ export function createExtractor({ nouns = [], synonyms = {}, modifierWindow = 4 
     String.raw`${NOT_IN_TOKEN}(${NUM}${MAG})\s*(?:[-–—]|to)\s*(${NUM}${MAG})\s*((?:${QUALIFIER}\s+){0,${modifierWindow}}?)${NOUN}\b`, 'gi');
   // "tests: 846", "Tests — 846" (noun first, then the number)
   const NOUN_FIRST_RE = new RegExp(
-    String.raw`\b${NOUN}\s*[:=—–-]\s*(${NUM}${MAG})(?![\d.,]*[%x])`, 'gi');
+    String.raw`(?<![\w-])((?:${QUALIFIER}[ \t]+){0,2}?)${NOUN}[ \t]*[:=—–-][ \t]*(${NUM}${MAG})(?![\d.,]*[%x])`, 'gi');
   // After a count: a parenthetical breakdown "(Playwright 461 + Flutter 242)"
   const BREAKDOWN_RE = /^\s*\(([^()]{1,200})\)/;
+  // After a count: a colon breakdown "6 files: 2 new, 1 deleted, 3 modified"
+  const COLON_BREAKDOWN_RE = new RegExp(String.raw`^\s*:\s*((?:${NUM}\s+${QUALIFIER}(?:\s*,\s*(?:and\s+)?|\s+and\s+|(?=\s*$)|(?=\s*[.;:)\-–—•|])))+)`, 'i');
+  // Spelled-out small counts, and "no" in a change context ("no new dependencies" = 0 added).
+  const SPELLED_COUNT_RE = new RegExp(
+    String.raw`\b(zero|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|no)\s+((?:${QUALIFIER}\s+){0,${modifierWindow}}?)${NOUN}\b`, 'gi');
   const PAIR_LABEL_NUM = new RegExp(String.raw`(${QUALIFIER})\s+(${NUM}${MAG})`, 'g');
   const PAIR_NUM_LABEL = new RegExp(String.raw`${NOT_IN_TOKEN}(${NUM}${MAG})\s+(${QUALIFIER})`, 'g');
   // After a count: a trailing sub-count "..., 32 in daily production"
@@ -133,6 +189,18 @@ export function createExtractor({ nouns = [], synonyms = {}, modifierWindow = 4 
       claim: `${number}${isLowerBound ? '+' : ''} ${noun}`,
       ...extra,
     };
+  }
+
+  /** Qualifiers implied by the words around a count: verb before, participle after, floor/approx markers. */
+  function contextOf(clean, start, end, modifiers) {
+    const before = clean.slice(Math.max(0, start - 48), start);
+    const after = clean.slice(end);
+    const verb = VERB_LOOKBACK.exec(before);
+    const verbMod = verb && VERB_MODIFIERS[verb[1].toLowerCase()];
+    if (verbMod && !modifiers.includes(verbMod)) modifiers.unshift(verbMod);
+    const post = POST_NOUN_RE.exec(after);
+    if (post) { const pm = normalizeModifiers([post[1]])[0]; if (!modifiers.includes(pm)) modifiers.push(pm); }
+    return { isLowerBound: FLOOR_LOOKBACK_RE.test(before), approximate: APPROX_LOOKBACK_RE.test(before), negated: NEGATION_LOOKBACK_RE.test(before) };
   }
 
   /**
@@ -193,7 +261,9 @@ export function createExtractor({ nouns = [], synonyms = {}, modifierWindow = 4 
       if (isYear(number)) continue;
       const noun = canon(m[4]);
       const modifiers = normalizeModifiers((m[3] || '').trim().split(/\s+/));
-      pushUnique(out, seen, countRecord(number, noun, modifiers, { isLowerBound: Boolean(m[2]) }));
+      const ctx = contextOf(clean, m.index, m.index + m[0].length, modifiers);
+      if (ctx.negated) continue;
+      pushUnique(out, seen, countRecord(number, noun, modifiers, { isLowerBound: Boolean(m[2]) || ctx.isLowerBound, approximate: ctx.approximate }));
 
       const rest = clean.slice(m.index + m[0].length);
 
@@ -213,6 +283,17 @@ export function createExtractor({ nouns = [], synonyms = {}, modifierWindow = 4 
         }
       }
 
+      // "6 files: 2 new, 1 deleted, 3 modified"
+      const cb = COLON_BREAKDOWN_RE.exec(rest);
+      if (cb) {
+        PAIR_NUM_LABEL.lastIndex = 0;
+        for (const p of cb[1].matchAll(PAIR_NUM_LABEL)) {
+          const n = normalizeNumber(p[1]);
+          if (isYear(n) || nounSet.has(p[2].toLowerCase())) continue;
+          pushUnique(out, seen, countRecord(n, noun, normalizeModifiers([...modifiers.filter(w => w !== 'changed'), p[2]]), { derivedFrom: 'breakdown' }));
+        }
+      }
+
       // "85 n8n workflows built, 32 in daily production"
       const sc = SUBCOUNT_RE.exec(rest);
       if (sc) {
@@ -224,11 +305,27 @@ export function createExtractor({ nouns = [], synonyms = {}, modifierWindow = 4 
       }
     }
 
+    SPELLED_COUNT_RE.lastIndex = 0;
+    for (const m of clean.matchAll(SPELLED_COUNT_RE)) {
+      const word = m[1].toLowerCase();
+      const spelledNoun = canon(m[3]);
+      if (spelledNoun === 'years') continue; // "six years" is tenure, handled below
+      const modifiers = normalizeModifiers((m[2] || '').trim().split(/\s+/));
+      if (modifiers.some(w => MODIFIER_STOPWORDS.has(w))) continue;
+      if (contextOf(clean, m.index, m.index + m[0].length, modifiers).negated) continue;
+      // "no" is a count only in a change context: "no new dependencies", "removed no tests".
+      if (word === 'no' && !modifiers.some(w => CHANGE_MODIFIERS.has(w))) continue;
+      const number = word === 'no' ? '0' : String(SPELLED_NUMBERS[word] ?? (word === 'zero' ? 0 : NaN));
+      if (number === 'NaN') continue;
+      pushUnique(out, seen, countRecord(number, spelledNoun, modifiers, { derivedFrom: 'spelled' }));
+    }
+
     NOUN_FIRST_RE.lastIndex = 0;
     for (const m of clean.matchAll(NOUN_FIRST_RE)) {
-      const number = normalizeNumber(m[2]);
+      const number = normalizeNumber(m[3]);
       if (isYear(number)) continue;
-      pushUnique(out, seen, countRecord(number, canon(m[1]), [], { derivedFrom: 'noun-first' }));
+      const modifiers = normalizeModifiers((m[1] || '').trim().split(/\s+/)).filter(w => !MODIFIER_STOPWORDS.has(w));
+      pushUnique(out, seen, countRecord(number, canon(m[2]), modifiers, { derivedFrom: 'noun-first' }));
     }
 
     SPELLED_YEARS_RE.lastIndex = 0;
