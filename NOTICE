@@ -1,0 +1,22 @@
+fact-gate
+Copyright (c) 2026 Zakaria Aichaoui
+
+This software contains material derived from career-ops
+(https://github.com/career-ops-hq/career-ops)
+Copyright (c) 2026 Santiago Fernández de Valderrama
+Licensed under the MIT License.
+
+Derived from career-ops v1.31.0, files verify-cv-facts.mjs and
+story-provenance-check.mjs:
+  - the claim-shape regular expressions for counts, percentages, amounts,
+    multipliers and years
+  - the extraction lesson "widen the modifier window, bind lazily"
+
+Original to fact-gate:
+  - the three-way verified / unsupported / fabricated classification
+  - the asymmetric comparison rules (generous verification, strict contradiction)
+  - lower-bound ("N+") checking with a floor ratio
+  - parenthetical-breakdown, trailing sub-count and noun-first extraction
+  - range extraction (both ends of "4-5 hours", "$3K–$4.5K", "40-60%")
+  - structured facts input, allowlist auditing, reference-text echo downgrade,
+    spelled-out tenure checking, the CLI, the eval harness and the tests

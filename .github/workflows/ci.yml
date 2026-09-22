@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: unit + regression tests
+        run: npm test
+      - name: eval set (precision / recall of the gate itself)
+        run: npm run eval
+      - name: CLI smoke
+        shell: bash
+        run: |
+          set -e
+          echo "Ran 85 workflows." | node src/cli.mjs --source examples/source.md --quiet
+          if echo "Ran 1,200 tests." | node src/cli.mjs --source examples/source.md; then
+            echo "expected a block"; exit 1
+          fi

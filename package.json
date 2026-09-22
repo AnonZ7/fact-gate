@@ -1,0 +1,34 @@
+{
+  "name": "fact-gate",
+  "version": "1.0.0",
+  "description": "Verify LLM-generated text against a source of truth. Extracts every number, year, employer, title and tool the model asserts, checks each one, and blocks on fabrication. Zero dependencies, zero LLM calls.",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": { "types": "./index.d.ts", "import": "./src/index.mjs" },
+    "./extract": "./src/extract.mjs",
+    "./compare": "./src/compare.mjs",
+    "./normalize": "./src/normalize.mjs"
+  },
+  "bin": { "fact-gate": "./src/cli.mjs" },
+  "files": ["src/", "index.d.ts", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "eval": "node evals/run.mjs",
+    "check": "npm test && npm run eval",
+    "example": "node examples/cv-tailoring.mjs"
+  },
+  "keywords": [
+    "llm", "hallucination", "fact-check", "guardrails", "verification", "evals",
+    "agents", "ai-safety", "grounding", "cv", "generation", "zero-dependency"
+  ],
+  "author": "Zakaria Aichaoui <zaichaoui@gmail.com>",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/AnonZ7/fact-gate.git" },
+  "bugs": { "url": "https://github.com/AnonZ7/fact-gate/issues" },
+  "homepage": "https://github.com/AnonZ7/fact-gate#readme",
+  "sideEffects": false
+}
