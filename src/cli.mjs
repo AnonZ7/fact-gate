@@ -194,7 +194,7 @@ function init(dir = '.') {
   console.log(`
 Install the CLI once so the hook is fast (it runs on every Write/Edit):
 
-  npm install -g fact-gate          # or: npm install -g github:AnonZ7/fact-gate
+  npm install -g fact-gate
 
 Let the hook run the "cmd" measurements in this config (once; editing the file revokes it):
 

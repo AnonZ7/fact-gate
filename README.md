@@ -8,6 +8,7 @@ Your agent writes the PR description, the README, the changelog, the report. The
 
 [![ci](https://github.com/AnonZ7/fact-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/AnonZ7/fact-gate/actions/workflows/ci.yml)
 [![self-gated](https://github.com/AnonZ7/fact-gate/actions/workflows/fact-gate.yml/badge.svg)](https://github.com/AnonZ7/fact-gate/actions/workflows/fact-gate.yml)
+[![npm](https://img.shields.io/npm/v/fact-gate?color=cb3837)](https://www.npmjs.com/package/fact-gate)
 [![zero dependencies](https://img.shields.io/badge/dependencies-0-16a34a)](package.json)
 [![node >= 20](https://img.shields.io/badge/node-%3E%3D20-3c873a)](package.json)
 [![MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -16,10 +17,10 @@ Your agent writes the PR description, the README, the changelog, the report. The
 
 ```bash
 # the PR description you are about to post, against the change it describes
-npx github:AnonZ7/fact-gate --target pr-body.md --git origin/main
+npx fact-gate --target pr-body.md --git origin/main
 
 # a README, against numbers measured from the repo itself
-npx github:AnonZ7/fact-gate --target README.md --facts .fact-gate.json
+npx fact-gate --target README.md --facts .fact-gate.json
 ```
 
 ```
@@ -83,7 +84,7 @@ Annotations on the PR, a step summary listing every claim and every measured fac
 ### Claude Code hook
 
 ```bash
-npm install -g fact-gate             # once, so the hook is fast (or: npm i -g github:AnonZ7/fact-gate)
+npm install -g fact-gate             # once, so the hook is fast
 fact-gate init                       # writes .fact-gate.json, prints the two lines below
 fact-gate trust .fact-gate.json      # lets the hook run this file's "cmd" measurements
 ```
@@ -148,7 +149,7 @@ for (let attempt = 0; attempt < 3; attempt++) {
 }
 ```
 
-TypeScript declarations included. Zero runtime dependencies. `fact-gate/core` is the browser-safe half (no Node built-ins). Testing from a clone before the npm release: import `./src/index.mjs` by relative path (on Windows, an absolute path must be a `file://` URL).
+`npm install fact-gate`. TypeScript declarations included. Zero runtime dependencies. `fact-gate/core` is the browser-safe half (no Node built-ins).
 
 ## Measured facts, not typed ones
 
