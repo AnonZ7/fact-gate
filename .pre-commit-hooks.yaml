@@ -1,0 +1,19 @@
+# pre-commit framework (https://pre-commit.com) hook definition.
+#
+#   repos:
+#     - repo: https://github.com/AnonZ7/fact-gate
+#       rev: v1.2.0
+#       hooks:
+#         - id: fact-gate
+#
+# Checks the STAGED content of markdown files covered by the nearest
+# .fact-gate.json. `pass_filenames: false` because fact-gate reads the index
+# itself (git show :path), so it judges what will be committed.
+- id: fact-gate
+  name: fact-gate (AI-written text vs the facts)
+  description: Blocks a commit whose markdown states a number, date, name or tool the facts contradict.
+  entry: fact-gate pre-commit
+  language: node
+  files: \.(md|mdx|markdown|txt|rst|adoc)$
+  pass_filenames: false
+  minimum_pre_commit_version: '3.0.0'

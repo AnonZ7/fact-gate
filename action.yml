@@ -23,7 +23,7 @@ inputs:
     required: false
     default: ''
   facts:
-    description: 'Path to a facts JSON file (values may be measurements: {"cmd"|"file"|"json","pattern"}).'
+    description: 'Path to a facts JSON file or a .fact-gate.json (values may be measurements: {"cmd"|"file"|"json","pattern"}).'
     required: false
     default: ''
   source:
@@ -50,10 +50,14 @@ inputs:
     description: 'Drop fenced and inline code from the target before checking (examples are not claims). true|false'
     required: false
     default: 'true'
+  comment:
+    description: 'Post (and keep updated) one sticky comment with the report on the pull request. Needs `pull-requests: write`. true|false'
+    required: false
+    default: 'false'
 
 outputs:
   verdict:
-    description: 'pass | warn | block'
+    description: 'pass | warn | block | skipped'
     value: ${{ steps.gate.outputs.verdict }}
   fabricated:
     description: 'Number of fabricated claims'
@@ -85,6 +89,7 @@ runs:
         FG_LABEL: ${{ inputs.label }}
         FG_FAIL_ON: ${{ inputs['fail-on'] }}
         FG_IGNORE_CODE: ${{ inputs['ignore-code'] }}
+        FACT_GATE_ALLOW_CMD: '1'
         PR_BODY: ${{ github.event.pull_request.body }}
         PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -96,7 +101,7 @@ runs:
         else
           if [ -z "${PR_BODY:-}" ]; then
             echo "fact-gate: no target file and no pull request body to check — skipping"
-            echo "verdict=pass" >> "$GITHUB_OUTPUT"; exit 0
+            echo "verdict=skipped" >> "$GITHUB_OUTPUT"; echo "exit_code=0" >> "$GITHUB_OUTPUT"; exit 0
           fi
           args+=(--target-env PR_BODY --label "PR #${PR_NUMBER:-?} description")
         fi
@@ -126,11 +131,36 @@ runs:
           *" --diff "*|*" --facts "*|*" --source "*) ;;
           *)
             echo "::warning title=fact-gate::nothing to check against (no diff could be computed and no facts/source given) — skipped"
-            echo "verdict=skipped" >> "$GITHUB_OUTPUT"; exit 0;;
+            echo "verdict=skipped" >> "$GITHUB_OUTPUT"; echo "exit_code=0" >> "$GITHUB_OUTPUT"; exit 0;;
         esac
         # GitHub runs composite bash steps with -e; capture the exit code instead of dying on it.
         code=0
         node "$GITHUB_ACTION_PATH/src/cli.mjs" "${args[@]}" || code=$?
         if [ "$code" -eq 2 ]; then exit 2; fi
-        if [ "$FG_FAIL_ON" = "never" ]; then exit 0; fi
-        exit "$code"
+        [ "$FG_FAIL_ON" = "never" ] && code=0
+        echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+
+    - name: sticky PR comment
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' && steps.gate.outputs.verdict != 'skipped' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPORT: ${{ steps.gate.outputs.report }}
+      run: |
+        set -uo pipefail
+        marker='<!-- fact-gate-report -->'
+        body="$marker"$'\n'"$REPORT"$'\n'"<sub>by <a href=\"https://github.com/AnonZ7/fact-gate\">fact-gate</a> — deterministic, zero LLM calls</sub>"
+        existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" 2>/dev/null | head -n1 || true)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" >/dev/null && echo "updated comment $existing"
+        else
+          gh api -X POST "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$body" >/dev/null && echo "posted comment"
+        fi || echo "::warning title=fact-gate::could not post the PR comment (does the workflow have pull-requests: write?)"
+
+    - name: verdict
+      shell: bash
+      env:
+        CODE: ${{ steps.gate.outputs.exit_code }}
+      run: exit "${CODE:-0}"

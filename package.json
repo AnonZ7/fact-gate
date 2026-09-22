@@ -1,6 +1,6 @@
 {
   "name": "fact-gate",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Verify what an AI wrote against what is true. Blocks PR descriptions, READMEs, changelogs and reports that state a number, date, name or tool your diff, tests or facts contradict. Deterministic, zero dependencies, zero LLM calls. CLI, library, GitHub Action, Claude Code hook.",
   "type": "module",
   "main": "./src/index.mjs",
@@ -9,6 +9,10 @@
     ".": {
       "types": "./index.d.ts",
       "import": "./src/index.mjs"
+    },
+    "./core": {
+      "types": "./index.d.ts",
+      "import": "./src/core.mjs"
     },
     "./extract": {
       "types": "./index.d.ts",
@@ -34,6 +38,10 @@
       "types": "./index.d.ts",
       "import": "./src/hook.mjs"
     },
+    "./precommit": {
+      "types": "./index.d.ts",
+      "import": "./src/precommit.mjs"
+    },
     "./trust": {
       "types": "./index.d.ts",
       "import": "./src/trust.mjs"
@@ -44,6 +52,7 @@
   },
   "files": [
     "src/",
+    ".pre-commit-hooks.yaml",
     "schema/",
     "index.d.ts",
     "README.md",
@@ -78,6 +87,9 @@
     "agents",
     "claude-code",
     "claude-code-hooks",
+    "pre-commit",
+    "husky",
+    "lefthook",
     "github-action",
     "pull-request",
     "pr-description",

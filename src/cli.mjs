@@ -18,6 +18,7 @@ import { factsFromDiff } from './diff.mjs';
 import { resolveFacts, isMeasurement } from './facts.mjs';
 import { hookMain, CONFIG_NAME, isProjectConfig, loadConfig } from './hook.mjs';
 import { trust, trustFile } from './trust.mjs';
+import { precommitMain } from './precommit.mjs';
 import { randomUUID } from 'node:crypto';
 
 function collectMeasurementKeys(facts) {
@@ -38,6 +39,7 @@ USAGE
   fact-gate init [dir]                   write ${CONFIG_NAME} and print the Claude Code hook snippet
   fact-gate hook                         Claude Code PreToolUse hook (reads the hook JSON on stdin)
   fact-gate trust [config]               allow the hook to run this config's "cmd" measurements
+  fact-gate pre-commit [--strict]        check STAGED files covered by .fact-gate.json; exit 1 on block
 
 SOURCES OF TRUTH (combine freely)
   --source <file>    prose the text must agree with (a profile, a spec, a changelog entry)
@@ -216,6 +218,7 @@ export async function main(argv = process.argv.slice(2)) {
   const sub = args._[0] && !args._[0].startsWith('-') ? args._[0] : 'check';
   if (sub === 'hook') return hookMain();
   if (sub === 'init') { init(args._[1]); return 0; }
+  if (sub === 'pre-commit' || sub === 'precommit') return precommitMain({ strict: Boolean(args.strict), quiet: Boolean(args.quiet), paint: paint(useColor(args)) });
   if (sub === 'trust') {
     const target = args._[1] || CONFIG_NAME;
     try {

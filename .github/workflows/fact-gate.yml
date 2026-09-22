@@ -14,7 +14,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   pr-description:
@@ -27,6 +27,7 @@ jobs:
         with:
           diff: 'true'
           fail-on: block
+          comment: 'true'
 
   readme:
     runs-on: ubuntu-latest

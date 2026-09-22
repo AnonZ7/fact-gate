@@ -63,6 +63,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: AnonZ7/fact-gate@v1
+        with:
+          comment: 'true'                  # needs permissions: pull-requests: write
 
   readme:                                  # the README vs measured facts
     runs-on: ubuntu-latest
@@ -76,7 +78,7 @@ jobs:
           diff: 'false'
 ```
 
-Annotations on the PR, a step summary listing every claim and every measured fact, and `verdict` / `fabricated` / `report` outputs for a comment step. `fail-on: warn` also fails on unsupported claims; `fail-on: never` only reports. This is [what this repository runs on itself](.github/workflows/fact-gate.yml).
+Annotations on the PR, a step summary listing every claim and every measured fact, and `verdict` / `fabricated` / `report` outputs. Add `comment: 'true'` (with `permissions: pull-requests: write`) for one sticky comment on the PR that is updated on every push. `fail-on: warn` also fails on unsupported claims; `fail-on: never` only reports. This is [what this repository runs on itself](.github/workflows/fact-gate.yml).
 
 ### Claude Code hook
 
@@ -95,6 +97,20 @@ fact-gate trust .fact-gate.json      # lets the hook run this file's "cmd" measu
 Before a matching file is written, the projected content is checked against the nearest `.fact-gate.json`. A contradiction denies the write and hands the reasons back to the agent, which corrects the figures and tries again. Unsupported claims are allowed and shown, never blocked. No config above the file means the hook is inert. It exits 0 on every failure path; it cannot break a session.
 
 **Trust.** A config can say `{"cmd": "node --test"}`. The hook fires in whatever repository the agent is writing to, so a config in a freshly cloned repo does not get to run commands on your machine: in hook mode, `cmd` measurements run only for a config you have trusted with `fact-gate trust`, which records the file's hash in `~/.fact-gate/trusted.json`. Edit the file and it is untrusted again. Until then literal, `file` and `json` facts still gate, and the agent is told what was skipped. `FACT_GATE_ALLOW_CMD=1` trusts everything, for CI.
+
+### Git pre-commit — every editor, every agent
+
+```bash
+fact-gate pre-commit          # checks the STAGED content of covered files; exit 1 refuses the commit
+```
+
+| Tool | Wiring |
+|---|---|
+| husky v9 | `echo "npx fact-gate pre-commit" > .husky/pre-commit` |
+| lefthook | `pre-commit: { commands: { fact-gate: { glob: "*.{md,mdx}", run: npx fact-gate pre-commit } } }` |
+| pre-commit framework | `- repo: https://github.com/AnonZ7/fact-gate` · `rev: v1.2.0` · `hooks: [{ id: fact-gate }]` |
+
+It reads `git show :path`, so it judges what will be committed, not the working tree. Cursor, Codex, Copilot and humans all go through the same gate.
 
 ### CLI
 
@@ -132,7 +148,7 @@ for (let attempt = 0; attempt < 3; attempt++) {
 }
 ```
 
-TypeScript declarations included. Zero runtime dependencies. Testing from a clone before the npm release: import `./src/index.mjs` by relative path (on Windows, an absolute path must be a `file://` URL).
+TypeScript declarations included. Zero runtime dependencies. `fact-gate/core` is the browser-safe half (no Node built-ins). Testing from a clone before the npm release: import `./src/index.mjs` by relative path (on Windows, an absolute path must be a `file://` URL).
 
 ## Measured facts, not typed ones
 
@@ -209,7 +225,7 @@ docs-vs-facts      cases:  19   precision: 100.0%   recall: 100.0%   false-block
 
 **False blocks are the number to watch.** A gate that rejects true statements gets whitelisted around, and a whitelisted gate is worse than none. `result.allowlist.unused` exists for the same reason: an allow-list entry that rescues nothing is stale or hiding a fixed bug, and the report says so.
 
-93 tests run on Node 20, 22 and 24, on Linux and Windows. Five of them are dated production regressions from the gate's first week, reproduced against the old code before being fixed; six more pin the findings of a pre-release adversarial review (a negated count that was blocked, fullwidth digits that were invisible, a heading word that laundered a fabrication into a warning) and a security test that proves a config runs nothing for files it does not cover.
+97 tests run on Node 20, 22 and 24, on Linux and Windows. Five of them are dated production regressions from the gate's first week, reproduced against the old code before being fixed; six more pin the findings of a pre-release adversarial review (a negated count that was blocked, fullwidth digits that were invisible, a heading word that laundered a fabrication into a warning) and a security test that proves a config runs nothing for files it does not cover. This paragraph has been blocked twice by the repo's own gate for stating a stale test count.
 
 | | Defect | What it did |
 |---|---|---|

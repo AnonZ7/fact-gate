@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.0 — 2026-09-23
+
+Where it runs, part two: git and the PR conversation. Chosen after a second
+round of adversarial review of the roadmap, which dropped an MCP server and
+a browser playground (no evidence either channel produces users for a CI
+tool) in favour of the two things every team already has.
+
+### Added
+
+- **`fact-gate pre-commit`.** Checks the *staged* content (`git show :path`)
+  of every file the nearest `.fact-gate.json` covers, refuses the commit on
+  a contradiction. Editor-agnostic: Cursor, Codex, Copilot and humans go
+  through the same gate. `.pre-commit-hooks.yaml` for the pre-commit
+  framework; husky and lefthook one-liners in the README. `checkStaged`,
+  `stagedPaths`, `stagedContent` in the library.
+- **Sticky PR comment.** `comment: 'true'` on the Action posts one comment
+  with the report and keeps it updated on every push (`pull-requests: write`).
+  The Action now records its exit code and fails in a final step, so the
+  comment is posted even when the gate blocks.
+- `fact-gate/core`: the browser-safe half of the library (no Node built-ins).
+
+### Deferred, deliberately
+
+MCP server, GitHub Pages playground, SARIF output, dedicated JUnit / lcov /
+git-log adapters. The `cmd` measurement already covers any artefact a shell
+can read; the rest will be built when a user asks.
+
 ## 1.1.0 — 2026-09-22
 
 The gate moves from "run it by hand on a CV" to "it runs where the text is

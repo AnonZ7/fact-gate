@@ -159,6 +159,11 @@ export function loadConfig(configPath: string, options?: { allowCmd?: boolean })
 export function findConfig(dir: string, name?: string): string | null;
 export function projectedContent(toolName: string, input: Record<string, unknown>, readExisting: () => string): string | null;
 
+// ---------------------------------------------------------------- git pre-commit
+export function stagedPaths(cwd?: string): string[];
+export function stagedContent(path: string, cwd?: string): string;
+export function checkStaged(options?: { cwd?: string; files?: string[]; allowCmd?: boolean }): { results: Array<{ path: string; result: VerifyResult }>; skipped: string[]; verdict: Verdict };
+
 // ---------------------------------------------------------------- extraction / comparison
 export interface Extractor {
   numericClaims(text: string): NumericClaim[];

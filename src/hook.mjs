@@ -105,6 +105,9 @@ export function loadConfig(cfgPath, { allowCmd = true } = {}) {
   return { cfg, options, measurements, skipped, dir: cfgDir };
 }
 
+/** Does this config cover this file (include/exclude)? */
+export function matchesConfig(filePath, cfg) { return matches(filePath, cfg); }
+
 function matches(filePath, cfg) {
   const inc = Array.isArray(cfg.include) && cfg.include.length ? cfg.include : DEFAULT_INCLUDE;
   const exc = Array.isArray(cfg.exclude) ? cfg.exclude : [];
