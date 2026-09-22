@@ -1,5 +1,5 @@
 name: 'fact-gate'
-description: 'Fail the PR when AI-written text (PR description, README, changelog) contradicts the diff or measured facts. Zero deps, zero LLM calls.'
+description: 'Fail the PR when AI-written text (PR body, README, changelog) contradicts the diff or measured facts. Zero deps, no LLM.'
 author: 'Zakaria Aichaoui'
 branding:
   icon: 'shield'
