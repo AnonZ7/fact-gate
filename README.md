@@ -226,7 +226,7 @@ docs-vs-facts      cases:  19   precision: 100.0%   recall: 100.0%   false-block
 
 **False blocks are the number to watch.** A gate that rejects true statements gets whitelisted around, and a whitelisted gate is worse than none. `result.allowlist.unused` exists for the same reason: an allow-list entry that rescues nothing is stale or hiding a fixed bug, and the report says so.
 
-97 tests run on Node 20, 22 and 24, on Linux and Windows. Five of them are dated production regressions from the gate's first week, reproduced against the old code before being fixed; six more pin the findings of a pre-release adversarial review (a negated count that was blocked, fullwidth digits that were invisible, a heading word that laundered a fabrication into a warning) and a security test that proves a config runs nothing for files it does not cover. This paragraph has been blocked twice by the repo's own gate for stating a stale test count.
+98 tests run on Node 20, 22 and 24, on Linux and Windows. Five of them are dated production regressions from the gate's first week, reproduced against the old code before being fixed; six more pin the findings of a pre-release adversarial review (a negated count that was blocked, fullwidth digits that were invisible, a heading word that laundered a fabrication into a warning) and a security test that proves a config runs nothing for files it does not cover. This paragraph has been blocked twice by the repo's own gate for stating a stale test count.
 
 | | Defect | What it did |
 |---|---|---|

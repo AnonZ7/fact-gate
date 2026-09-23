@@ -112,8 +112,7 @@ test('a test file in a house style (no recognisable test() calls) leaves the cas
   const d = [
     'diff --git a/tests/x.test.mjs b/tests/x.test.mjs', 'new file mode 100644', '--- /dev/null', '+++ b/tests/x.test.mjs', '@@ -0,0 +1,4 @@',
     '+import { pass, fail } from "./helpers.mjs";', '+{', '+  if (1 + 1 === 2) pass("adds"); else fail("adds");', '+}', '',
-  ].join('
-');
+  ].join(String.fromCharCode(10));
   const f = factsFromDiff(d);
   assert.equal('tests added' in f.counts, false, 'unknown, so a claim of "two new tests" is unsupported, never fabricated');
   assert.equal(f.counts['test files added'], 1);
