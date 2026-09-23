@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `factsFromDiff`: a changed test file whose runner syntax is not recognised no
+  longer asserts `tests added: 0`. Found by the contrib bot on career-ops, whose
+  tests are bare blocks calling `pass()` — "two new tests" was blocked as a lie.
+
 ## 1.2.0 — 2026-09-23
 
 Where it runs, part two: git and the PR conversation. Chosen after a second

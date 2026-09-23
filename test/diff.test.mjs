@@ -107,3 +107,17 @@ test('diff facts merge with user facts; user facts win on a duplicate key', () =
   const r = verifyFacts('Adds 4 tests. The suite has 100 tests.', { diff, facts: { counts: { tests: 100 } } });
   assert.equal(r.verdict, 'pass', formatReport(r));
 });
+
+test('a test file in a house style (no recognisable test() calls) leaves the case count unknown, not zero', () => {
+  const d = [
+    'diff --git a/tests/x.test.mjs b/tests/x.test.mjs', 'new file mode 100644', '--- /dev/null', '+++ b/tests/x.test.mjs', '@@ -0,0 +1,4 @@',
+    '+import { pass, fail } from "./helpers.mjs";', '+{', '+  if (1 + 1 === 2) pass("adds"); else fail("adds");', '+}', '',
+  ].join('
+');
+  const f = factsFromDiff(d);
+  assert.equal('tests added' in f.counts, false, 'unknown, so a claim of "two new tests" is unsupported, never fabricated');
+  assert.equal(f.counts['test files added'], 1);
+  assert.equal(verifyFacts('Adds two new tests.', { diff: d }).verdict, 'warn');
+  // ...while a recognised runner still yields an exact count.
+  assert.equal(factsFromDiff(diff).counts['tests added'], 4);
+});

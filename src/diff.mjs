@@ -162,7 +162,12 @@ export function factsFromDiff(text, { commits } = {}) {
     'dependencies deleted': d.dependenciesRemoved.length,
     'packages deleted': d.dependenciesRemoved.length,
   };
-  if (d.format === 'unified') { counts['tests added'] = testsAdded; counts['cases added'] = testsAdded; }
+  // Test cases are counted only when the runner's syntax is recognised. A test
+  // file written in a house style (bare blocks calling pass()/fail()) yields no
+  // count at all; asserting "0 tests added" there would turn a true "two new
+  // tests" into a fabrication.
+  const testSyntaxKnown = testsAdded > 0 || testFiles.every(f => f.additions === 0);
+  if (d.format === 'unified' && testSyntaxKnown) { counts['tests added'] = testsAdded; counts['cases added'] = testsAdded; }
   if (Number.isFinite(commits)) counts['commits'] = commits;
 
   return {
